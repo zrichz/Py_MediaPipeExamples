@@ -1,4 +1,4 @@
-'''ingests a video file and output 480 xyz face landmarks per frame to a csv-type file'''
+'''ingests a video file and output **478** xyz face landmarks per frame to a csv-type file'''
 
 '''
 note: the Face Mesh data contains 468 (0-467) face landmarks as per the published canonical face model,
@@ -20,7 +20,7 @@ csvfilename="businesswoman" #used later to save csv data
 
 with open(csvfilename+'.csv', mode='w', newline='') as landmark_file:
 						landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-						landmark_writer.writerow('#test comment') #write one line of comment...
+						landmark_writer.writerow('#test') #write one line of comment (note numpy will skip this header row on re-import)...
 
 # For video file input:
 frame=0
@@ -93,23 +93,24 @@ with open("template.usda", "r") as f:
     template = f.read()
 
 #import data from a csv file to a numpy array
+# note: this skips the header comment (cool!)
 data=np.genfromtxt(csvfilename+'.csv', delimiter=',', skip_header=1)
 
 print("original csv file data shape : ", data.shape)
 # so, data.shape is (number of frames, number of landmarks, 3)
 # get and print the value of frame in the last row of data
 frame = int(data[-1][0])
-print ("last frame=",frame)
+print ("actual last frame (remember frame in the data starts at 0): ",frame)
 
 np.delete(data, [0,1], axis=1) #delete the first two columns of data (frame and landmark number)
 
-# reshape the data into <frame> rows by 480 columns of x,y,z co-ords
-data=data.reshape(int(frame),480*3)
+# reshape the data into <frame> rows by 478 columns of x,y,z co-ords
+data=data.reshape(-1,478*3)
 print("reshaped data: ", data.shape)
 print ("example first few rows of data:")
 
 for a in range(0,5):
-      print("frame ",a,": ", data[a])
+      print("row ",a,": ", data[a])
 
 
 '''
@@ -117,7 +118,7 @@ for a in range(0,5):
 # then write the new string to a new file called '<csvfilename>.usda'
 with open(csvfilename+".usda", "w") as f:
     for line in template.splitlines():
-        if "endTimeCode = 5" in line:
+        if "endTimeCode =" in line:
             f.write("endTimeCode = " + frame + "")
         else:
             f.write(line + "")
