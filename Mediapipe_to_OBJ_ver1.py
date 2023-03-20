@@ -20,11 +20,11 @@ csvfilename="businesswoman" #used later to save csv data
 
 with open(csvfilename+'.csv', mode='w', newline='') as landmark_file:
 						landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-						landmark_writer.writerow('#test') #write one line of comment (note numpy will skip this header row on re-import)...
+						landmark_writer.writerow('#test') #write one line of comment (note we can hopefully skip this header row on re-import)...
 
 # For video file input:
 frame=0
-#cap = cv2.VideoCapture("examples/newsreader.mp4")
+# example files are in the 'examples' subfolder: businesswoman.mp4, newsreader.mp4 and men.mp4
 cap = cv2.VideoCapture("examples/businesswoman.mp4")
 
 with mp_face_mesh.FaceMesh(
@@ -61,19 +61,21 @@ with mp_face_mesh.FaceMesh(
 
 #=================================================================================================================
     # for visualisation purposes only, Draw the face mesh on the video.
-    image.flags.writeable = True
-    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
-    if results.multi_face_landmarks:
-      for face_landmarks in results.multi_face_landmarks:
-        mp_drawing.draw_landmarks(
-            image=image,
-            landmark_list=face_landmarks,
-            connections=mp_face_mesh.FACEMESH_TESSELATION,
-            landmark_drawing_spec=None,
-            connection_drawing_spec=mp_drawing_styles
-            .get_default_face_mesh_tesselation_style())
+    # TRY ONLY EVERY TWENTY FRAMES FOR SPEED
+    if (frame%50) == 0:
+          image.flags.writeable = True
+          image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+          if results.multi_face_landmarks:
+            for face_landmarks in results.multi_face_landmarks:
+              mp_drawing.draw_landmarks(
+              image=image,
+              landmark_list=face_landmarks,
+              connections=mp_face_mesh.FACEMESH_TESSELATION,
+              landmark_drawing_spec=None,
+              connection_drawing_spec=mp_drawing_styles
+              .get_default_face_mesh_tesselation_style())
     
-    cv2.imshow('MediaPipe Face Mesh', image)
+          cv2.imshow('MediaPipe Face Mesh', image)
     
     frame+=1 #increase frame index. NOTE: careful with correct indentation!
 
@@ -88,42 +90,46 @@ print("last frame in the movie was (or is this off by one?): ",frame)
 # to import a base .usda file, and amend it / append
 # the actual xyz points in the correct format! simples!
 
-#open a template file called "template.usda" and read it into a variable called "template"
+#first, open a TEMPLATE file called "template.usda" and read it into a variable called "template"
+#this contains some of the required boilerplate code for the usda file
 with open("template.usda", "r") as f:
     template = f.read()
 
-#import data from a csv file to a numpy array
-# note: this skips the header comment (cool!)
-data=np.genfromtxt(csvfilename+'.csv', delimiter=',', skip_header=1)
+print("#############################################")
+#print (template)
+print("#############################################")
+#print the first 50 items of the template file
+for a in range(0,150):
+      print("original 'template.usda' item (this is a list) ",a,": ", template[a])
 
-print("original csv file data shape : ", data.shape)
-# so, data.shape is (number of frames, number of landmarks, 3)
-# get and print the value of frame in the last row of data
-frame = int(data[-1][0])
-print ("actual last frame (remember frame in the data starts at 0): ",frame)
-
-np.delete(data, [0,1], axis=1) #delete the first two columns of data (frame and landmark number)
-
-# reshape the data into <frame> rows by 478 columns of x,y,z co-ords
-data=data.reshape(-1,478*3)
-print("reshaped data: ", data.shape)
-print ("example first few rows of data:")
-
-for a in range(0,5):
-      print("row ",a,": ", data[a])
+#import data from the initial csv file in order to reformat it to the usda standard
+# will need the actual last frame (remember frame in the data starts at 0)
 
 
-'''
 # search template for a string and replace it
 # then write the new string to a new file called '<csvfilename>.usda'
 with open(csvfilename+".usda", "w") as f:
     for line in template.splitlines():
         if "endTimeCode =" in line:
-            f.write("endTimeCode = " + frame + "")
+            f.write("endTimeCode = " + str(frame) + "")
         else:
             f.write(line + "")
-'''
 
+
+
+#read the NEW file:
+with open(csvfilename+".usda", "r") as f:
+    modifiedtemplate = f.read()
+
+#print the first 50 items of the MODIFIED template file
+print("#############################################")
+for a in range(0,150):
+      print("MODIFIED 'csvfilename.usda' item (this is a list) ",a,": ", modifiedtemplate[a])
+
+
+#=================================================================================================================
+#=================================================================================================================
+#=================================================================================================================
 #=================================================================================================================
 '''here is the format of 'template.usda':
 #usda 1.0
@@ -141,14 +147,16 @@ def Xform "FaceMesh"
     def Mesh "FaceMesh"
     {
         uniform bool doubleSided = 1
-        # canonical vertex counts, vertex indices, and dummy points in next 3 lines
-        # shouldn't need to alter these from the template values
+        # note below examples are truncated, but the template.usda file has the full lists for vertex counts and edges etc
+        # The Canonical vertex counts, vertex indices, and dummy points in next 3 lines
+        # shouldn't need to alter these from the actual template values
         # (I think 'point3f[] points are superseded by the 'points.timeSamples' below)
-        int[] faceVertexCounts = [3, 3, 3, 3,....... 3, 3, 3, 3, 3, 3]
-        int[] faceVertexIndices = [173, 155, 133, 246, 33, 7, 382, 398, 362, 263......324, 191, 95, 80]
-        point3f[] points = [(0, -3.406404, 5.979507), (0, -1.126865, 7.475604), ...... (4.53, 2.91, 3.339685)]
+        int[] faceVertexCounts = [3, 3, 3, 3,....... 3, 3, 3]
+        int[] faceVertexIndices = [173, 155, 133, 246......324, 191, 95, 80]
+        point3f[] points = [(0, -3.4064123, 5.977), (0, -1.12, 7.4), ...... (4.53, 2.91, 3.339685)]
 
         # the below timesamples will need to be replaced...
+        # =================================================
         point3f[] points.timeSamples = {
             1: [(1.571, 1.571, 1), (1.571, 1.571, -1), (1.57, -1.57, 1), (1.57, -1.57, -1), (-1.57, 1.57, 1), (-1.5, 1.57, -1), (-1.5, -1.57, 1), (-1.57, -1.57, -1)],
             2: [(1.35, 1.35, 1), (1.35, 1.35, -1), (1.35, -1.35, 1), (1.35, -1.35, -1), (-1.35, 1.35, 1), (-1.35, 1.35, -1), (-1.35, -1.35, 1), (-1.35, -1.35, -1)],
