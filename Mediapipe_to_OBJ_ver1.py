@@ -31,7 +31,7 @@ mp_face_mesh = mp.solutions.face_mesh
 csvfilename="businesswoman" #used later to save csv data
 
 with open(csvfilename+'.csv', mode='w', newline='') as landmark_file:
-						landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+						landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE)
 						landmark_writer.writerow('#test') #write one line of comment (note we can hopefully skip this header row on re-import)...
 
 # For video file input:
@@ -69,10 +69,11 @@ with mp_face_mesh.FaceMesh(
           # try and write the frame and the landmark number, as well as the xyz co-ords...
           # ideally it should look like this:
           # 1: [(1.571, 1.571, 1), (1.571, 1.571, -1), (1.57, -1.57, 1), (1.57, -1.57, -1).......
-          #cannot use lm it is not an iterator, need to use manual iterator
+          #can't use lm (it's not an iterator) - need to use manual iterator ('point')
+          # using writerow generates many rows per frame - this may/may not be a problem
           if point==0: #first landmark in the list
-                # note use 'frame+1' below, as the first frame is 0, but we want to start at 1
-                # note the twelve leading spaces are needed to align the data correctly
+                # use 'frame+1' below, as the first frame is 0, but we want to start at 1
+                # the twelve leading spaces are needed to align the data correctly
                 landmark_writer.writerow(["            "+str(frame+1)+": [("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")"])
           elif point==477: #last landmark in the list
                 landmark_writer.writerow([", ("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")]\n"])
@@ -80,7 +81,6 @@ with mp_face_mesh.FaceMesh(
                 landmark_writer.writerow([", ("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")"])
           point+=1
   
-
 #     ==========still within the frame loop here=======================
     # for visualisation purposes only, Draw the face mesh on the video.
     # TRY ONLY EVERY n FRAMES FOR SPEED
@@ -109,8 +109,7 @@ cap.release()
 # ================================
 # =============================
 # ==========================
-# =======================
-# ====================
+
 print("last frame in the movie was (or is this off by one?): ",frame)
 
 # at this point, we have written a .csv file of the raw-ish xyz co-ords
@@ -128,7 +127,7 @@ print("##### original csv below ####")
 print("#############################")
 iter=0
 for line in originalcsv.splitlines():
-      if iter<600:
+      if iter<550: #print enough lines to see the first frame
         print(line)
         iter+=1
 
@@ -162,10 +161,40 @@ with open(csvfilename+".usda", "w") as f:               # open the *USDA* file f
 with open(csvfilename+".usda", "r") as f:
     modifiedtemplate = f.read()
 
-print("####### modified 'csvfilename' .usda file ###########")
+print("####### modified and filled in 'csvfilename' .usda file ###########")
 l=0
 for line in modifiedtemplate.splitlines():
-        if l<200:
+        if l<200: #print several lines to check it's ok
+              print(line)
+              l+=1
+
+
+# probably want to re-open the (MODIFIED)usda file and now fill in all the xyz co-ords at the appropriate point
+with open(csvfilename+".usda", "w") as f:               # open the *USDA* file for writing
+    for line in template.splitlines():                  # note: check the *TEMPLATE* file for the insert point
+        if "point3f[] points.timeSamples = {" in line:
+            f.write(line + "\n") #write the above-found line unchanged...
+            # NOW WRITE ALL THE CSV DATA (initial spaces are important)
+            for original_line in originalcsv.splitlines(): #'csvfilename.csv'
+                 #write the csv data here
+                 f.write(original_line + "")
+                 #f.write(original_line + "\n") # maybe don't use the \n here?
+            # ....
+            # ....
+            # ....
+        else:
+            f.write(line + "\n")
+
+print("======= finished writing the filled in .usda file (still has *extra* 1:, 2:, 3: lines in it...) ========")
+
+#reopen the usda file and check it's ok
+print("####### modified and filled in 'csvfilename' .usda file ###########")
+with open(csvfilename+".usda", "r") as f:
+    final_file = f.read()
+    # open the filled in *USDA* file (read only)
+    l=0
+    for line in final_file.splitlines():
+        if l<20: #print several lines to check it's ok
               print(line)
               l+=1
 
