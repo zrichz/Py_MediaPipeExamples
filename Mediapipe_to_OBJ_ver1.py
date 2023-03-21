@@ -2,15 +2,27 @@
 
 '''
 note: the Face Mesh data contains 468 (0-467) face landmarks as per the published canonical face model,
-but also an *additional* 10 xyz coords - these are five per eye (iris), such that
+**BUT** also an *additional* 10 xyz coords - these are five per eye (iris), such that
 index 468 is the centre of the character's right eye (468-472)
 index 473 is the centre of the character's left eye (473-477)
+
+so:
+****************************************
+***** 478 (0-477) points per frame  ****
+****************************************
 '''
+
 import cv2
 import csv
 import numpy as np
 import math
 import mediapipe as mp
+
+print("#################")
+print("##################")
+print("## begin prog #####")    
+print("####################")
+
 mp_drawing = mp.solutions.drawing_utils
 mp_drawing_styles = mp.solutions.drawing_styles
 mp_face_mesh = mp.solutions.face_mesh
@@ -55,14 +67,24 @@ with mp_face_mesh.FaceMesh(
         for lm in face_landmarks.landmark:
           # note I am rounding here, but you don't have to
           # try and write the frame and the landmark number, as well as the xyz co-ords...
-          landmark_writer.writerow([frame,point, round(lm.x,7), round(lm.y,7), round(lm.z,7)])
+          # ideally it should look like this:
+          # 1: [(1.571, 1.571, 1), (1.571, 1.571, -1), (1.57, -1.57, 1), (1.57, -1.57, -1).......
+          #cannot use lm it is not an iterator, need to use manual iterator
+          if point==0: #first landmark in the list
+                # note use 'frame+1' below, as the first frame is 0, but we want to start at 1
+                # note the twelve leading spaces are needed to align the data correctly
+                landmark_writer.writerow(["            "+str(frame+1)+": [("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")"])
+          elif point==477: #last landmark in the list
+                landmark_writer.writerow([", ("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")]\n"])
+          else: #all intermediate landmarks
+                landmark_writer.writerow([", ("+str(round(lm.x,7))+", "+str(round(lm.y,7))+", "+str(round(lm.z,7))+")"])
           point+=1
   
 
-#=================================================================================================================
+#     ==========still within the frame loop here=======================
     # for visualisation purposes only, Draw the face mesh on the video.
-    # TRY ONLY EVERY TWENTY FRAMES FOR SPEED
-    if (frame%50) == 0:
+    # TRY ONLY EVERY n FRAMES FOR SPEED
+    if (frame%10) == 0:
           image.flags.writeable = True
           image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
           if results.multi_face_landmarks:
@@ -83,48 +105,77 @@ with mp_face_mesh.FaceMesh(
       break
 
 cap.release()
-
+# the main frame loop ends here
+# ================================
+# =============================
+# ==========================
+# =======================
+# ====================
 print("last frame in the movie was (or is this off by one?): ",frame)
 
-# so, once we've written out the raw-ish xyz co-ords, we now need
-# to import a base .usda file, and amend it / append
+# at this point, we have written a .csv file of the raw-ish xyz co-ords
+# We now need to import a 'template.usda' file, and amend it / append
 # the actual xyz points in the correct format! simples!
 
-#first, open a TEMPLATE file called "template.usda" and read it into a variable called "template"
+##
+####
+######
+# open the (just-written) csv file and display the first 10 lines
+with open(csvfilename+".csv", "r") as f:
+    originalcsv = f.read()
+
+print("##### original csv below ####")
+print("#############################")
+iter=0
+for line in originalcsv.splitlines():
+      if iter<600:
+        print(line)
+        iter+=1
+
+#open a TEMPLATE file called "template.usda" and read it into a variable called "template"
 #this contains some of the required boilerplate code for the usda file
 with open("template.usda", "r") as f:
     template = f.read()
 
-print("#############################################")
-#print (template)
-print("#############################################")
-#print the first 50 items of the template file
-for a in range(0,150):
-      print("original 'template.usda' item (this is a list) ",a,": ", template[a])
+print("### USDA template file opened successfully ###")
 
 #import data from the initial csv file in order to reformat it to the usda standard
 # will need the actual last frame (remember frame in the data starts at 0)
 
+# #############################\
+# ####                       ###\
+# ####  USDA FILE CREATION    ###\
+# ####                         ###\
+# ################################/
 
-# search template for a string and replace it
+# search template file for the end timecode string and alter it to show actual last frame,
 # then write the new string to a new file called '<csvfilename>.usda'
-with open(csvfilename+".usda", "w") as f:
-    for line in template.splitlines():
+with open(csvfilename+".usda", "w") as f:               # open the *USDA* file for writing
+    for line in template.splitlines():                  # note: check the *TEMPLATE* file for the end timecode string
         if "endTimeCode =" in line:
-            f.write("endTimeCode = " + str(frame) + "")
+            f.write("    endTimeCode = " + str(frame) + "\n") # write the actual last frame into the *USDA* file (initial spaces are important)
         else:
-            f.write(line + "")
-
+            f.write(line + "\n")
 
 
 #read the NEW file:
 with open(csvfilename+".usda", "r") as f:
     modifiedtemplate = f.read()
 
-#print the first 50 items of the MODIFIED template file
-print("#############################################")
-for a in range(0,150):
-      print("MODIFIED 'csvfilename.usda' item (this is a list) ",a,": ", modifiedtemplate[a])
+print("####### modified 'csvfilename' .usda file ###########")
+l=0
+for line in modifiedtemplate.splitlines():
+        if l<200:
+              print(line)
+              l+=1
+
+
+# END of main program
+# #############
+# ###########
+# #########
+# #######
+# #####
 
 
 #=================================================================================================================
@@ -147,7 +198,9 @@ def Xform "FaceMesh"
     def Mesh "FaceMesh"
     {
         uniform bool doubleSided = 1
-        # note below examples are truncated, but the template.usda file has the full lists for vertex counts and edges etc
+        # *****note*****
+        # below examples are truncated, but 'template.usda' has FULL lists for vertex counts and edges etc
+        #
         # The Canonical vertex counts, vertex indices, and dummy points in next 3 lines
         # shouldn't need to alter these from the actual template values
         # (I think 'point3f[] points are superseded by the 'points.timeSamples' below)
