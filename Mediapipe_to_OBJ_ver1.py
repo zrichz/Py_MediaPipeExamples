@@ -62,7 +62,7 @@ with mp_face_mesh.FaceMesh(
     for face_landmarks in results.multi_face_landmarks:
       
       with open(csvfilename+'.csv', mode='a', newline='') as landmark_file:
-        landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\')
         point=0
         for lm in face_landmarks.landmark:
           # note I am rounding here, but you don't have to
@@ -127,7 +127,10 @@ print("##### original csv below ####")
 print("#############################")
 iter=0
 for line in originalcsv.splitlines():
-      if iter<550: #print enough lines to see the first frame
+    if iter<20: #print enough lines to see the first frame
+        print(line)
+        iter+=1
+    elif iter >450 and iter <500:
         print(line)
         iter+=1
 
@@ -135,7 +138,7 @@ for line in originalcsv.splitlines():
 #this contains some of the required boilerplate code for the usda file
 with open("template.usda", "r") as f:
     template = f.read()
-
+    f.close() #close the file
 print("### USDA template file opened successfully ###")
 
 #import data from the initial csv file in order to reformat it to the usda standard
@@ -155,16 +158,18 @@ with open(csvfilename+".usda", "w") as f:               # open the *USDA* file f
             f.write("    endTimeCode = " + str(frame) + "\n") # write the actual last frame into the *USDA* file (initial spaces are important)
         else:
             f.write(line + "\n")
-
+    f.close() #close the file
 
 #read the NEW file:
-with open(csvfilename+".usda", "r") as f:
-    modifiedtemplate = f.read()
+with open(csvfilename+".usda", "r") as f: #open the *USDA* file for reading
+    modifiedtemplate = f.read() #read the file into a variable
+    f.close #close the file
 
+print("\n\n\n\n\n\n")
 print("####### modified and filled in 'csvfilename' .usda file ###########")
 l=0
 for line in modifiedtemplate.splitlines():
-        if l<200: #print several lines to check it's ok
+        if l<100: #print several lines to check it's ok
               print(line)
               l+=1
 
