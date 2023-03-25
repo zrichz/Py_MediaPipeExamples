@@ -18,8 +18,6 @@ import numpy as np
 import math
 import mediapipe as mp
 
-print("#################")
-print("##################")
 print("## begin prog #####")    
 print("####################")
 
@@ -28,16 +26,16 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_face_mesh = mp.solutions.face_mesh
 
 #create a NEW placeholder csv file which will later be used to APPEND face landmarks 
-csvfilename="businesswoman" #used later to save csv data
+csvfilename="migraine" #used later to save csv data
 
-# with open(csvfilename+'.csv', mode='w', newline='') as landmark_file:
-# 						landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE)
-# 						landmark_writer.writerow('#test') #write one line of comment (note we can hopefully skip this header row on re-import)...
+with open(csvfilename+'.csv', mode='w', newline='\n') as landmark_file:
+	landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_NONE, escapechar='\\')
+	landmark_writer.writerow('#') #write one line of comment (note we can hopefully skip this header row on re-import)...
 
 # For video file input:
 frame=0
-# example files are in the 'examples' subfolder: businesswoman.mp4, newsreader.mp4 and men.mp4
-cap = cv2.VideoCapture("examples/businesswoman.mp4")
+# example files are in the 'examples' subfolder: migraine.mp4 (full HD), newsreader.mp4 and men.mp4
+cap = cv2.VideoCapture("examples/migraine.mp4")
 
 with mp_face_mesh.FaceMesh(
     max_num_faces=2,
@@ -61,7 +59,7 @@ with mp_face_mesh.FaceMesh(
     # (note mode 'a' means we are APPENDING this data to the existing placeholder file)
     for face_landmarks in results.multi_face_landmarks:
       
-      with open(csvfilename+'.csv', mode='w', newline='') as landmark_file:
+      with open(csvfilename+'.csv', mode='a', newline='\n') as landmark_file:
         landmark_writer = csv.writer(landmark_file, delimiter=',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         point=0
         for lm in face_landmarks.landmark:
@@ -105,6 +103,7 @@ with mp_face_mesh.FaceMesh(
       break
 
 cap.release()
+landmark_file.close()    # close the csv file
 # the main frame loop ends here
 # ================================
 # =============================
@@ -121,6 +120,10 @@ with open("template.usda", "r") as f_template:
     template = f_template.read()
 print("### USDA template file opened successfully ###")
 
+with open(csvfilename+".csv", "r") as f_csv:
+    xyzcsv = f_csv.read()
+print("### csv file opened successfully ###")
+
 # #############################\
 # ####                       ###\
 # ####  USDA FILE CREATION    ###\
@@ -135,30 +138,42 @@ print("### USDA template file opened successfully ###")
 with open(csvfilename+".usda", "w") as f_new_usda:               # create a new *USDA* file for writing
     for line in template.splitlines():                  # search the *TEMPLATE* file for the endTimeCode string
         if "endTimeCode =" in line:
-            f_new_usda.write("    endTimeCode = " + str(frame) + "\n") # write the actual last frame into the *USDA* file (initial spaces are important)
-        elif "1: [(1.571, 1.571, 1), (1.571, 1.571, -1)" in line:
-            f_new_usda.write("\n")
-        elif "2: [(1.35, 1.35, 1), (1.35, 1.35, -1)" in line:
-            f_new_usda.write("\n")
-        elif "3: [(0.19, 0.19, 1), (0.195, 0.195, -1.7)" in line:
-            f_new_usda.write("\n")
+            f_new_usda.write("    endTimeCode = " + str(frame)) # write the actual last frame into the *USDA* file (initial spaces are important)
+        elif "1: [(1.571" in line: #effectively remove the three example 'timeSamples' lines, by locating the first few characters of each
+            f_new_usda.write("#")
+        elif "2: [(1.35" in line:
+            f_new_usda.write("#")
+        elif "3: [(0.19" in line:
+            f_new_usda.write("#")
         elif "point3f[] points.timeSamples = {" in line:
             f_new_usda.write(line + "\n") #write the above-found line unchanged...
             # NOW WRITE ALL THE CSV DATA (initial spaces are important)
-            for original_line in landmark_file.splitlines(): #'csvfilename.csv'
+            for original_line in xyzcsv.splitlines(): #'csvfilename.csv'
                  #write the csv data here
                  f_new_usda.write(original_line + "")
                  #f_new_usda.write(original_line + "\n") # maybe don't use the \n here?
             
         else:
-            f_new_usda.write(line + "\n") #write every other line "as is"
+            f_new_usda.write(line + "\n") #write all other lines "as is"
 
 # housekeeping:
-landmark_file.close() #close the csv file
-f_new_usda.close() #close the usda file
-f_template.close() #close the template file
-
+f_new_usda.close()       # close the usda file
+f_template.close()       # close the template file
+f_csv.close()            # close the csv file
 print("======= finished writing the filled in .usda file  ========")
+
+print("about to remove all double-quotes from the .usda file")
+# re-open .usda file and remove all double-quotes
+with open(csvfilename+".usda", "w") as f_usda:               # open *USDA* file for writing
+    for line in template.splitlines():                       # search for double-quotes
+        if '""' in line:                                     # if double-quotes are found
+            line.replace('""',"")                            # remove double-quotes
+            f_usda.write(line + "\n")                        # write the revised line to the *USDA* file
+        else:
+            f_usda.write(line + "\n")                        # write all other lines "as is"    
+
+f_usda.close() #close the usda file
+print("======= finished removing all double-quotes from the .usda file  ========")
 
 # END of main program
 # ###################
